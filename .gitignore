@@ -1,0 +1,8 @@
+CLAUDE.md
+memory/
+*.o
+*.app
+Makefile
+moc_*.cpp
+moc_predefs.h
+.qmake.stash
