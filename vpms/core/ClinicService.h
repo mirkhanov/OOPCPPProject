@@ -32,6 +32,7 @@ public:
     Animal*     addAnimal(const string& type, const string& name,
                           int age, int ownerId);
     Animal*     getAnimal(int animalId);
+    const vector<Animal*>& getAllAnimals();
     vector<Animal*> getAnimalsByOwner(int ownerId);
     void        updateAnimal(Animal* animal);
     void        removeAnimal(int animalId);
@@ -41,6 +42,7 @@ public:
                             const string& date,
                             const vector<int>& serviceIds);
     Visit&      getVisit(int visitId);
+    const vector<Visit>& getAllVisits();
     vector<Visit> getVisitsByAnimal(int animalId);
     vector<Visit> getVisitsByOwner(int ownerId);
     void        cancelVisit(int visitId);
@@ -56,6 +58,7 @@ public:
                                    double unitPrice, const string& category);
     void        stockIn(int itemId, int qty);
     void        stockOut(int itemId, int qty);
+    void        removeInventoryItem(int itemId);
     vector<InventoryItem> getLowStockItems(int threshold = 10);
     const vector<InventoryItem>& getAllInventory();
 
@@ -63,6 +66,7 @@ public:
     HospitalizationRecord admitAnimal(int animalId, const string& ward,
                                       const string& admitDate, double dailyRate);
     double      dischargeAnimal(int recordId, const string& dischargeDate);
+    const vector<HospitalizationRecord>& getAllHospitalizations();
     vector<HospitalizationRecord> getActiveHospitalizations();
     void        addServiceToHospitalization(int recordId, int serviceId);
 

@@ -64,6 +64,10 @@ Animal* ClinicService::getAnimal(int animalId) {
     return _animals->getById(animalId);
 }
 
+const vector<Animal*>& ClinicService::getAllAnimals() {
+    return _animals->getAll();
+}
+
 vector<Animal*> ClinicService::getAnimalsByOwner(int ownerId) {
     vector<Animal*> result;
     for (Animal* a : _animals->getAll()) {
@@ -109,6 +113,10 @@ Visit ClinicService::createVisit(int animalId, int ownerId,
 
 Visit& ClinicService::getVisit(int visitId) {
     return _visits.getById(visitId);
+}
+
+const vector<Visit>& ClinicService::getAllVisits() {
+    return _visits.getAll();
 }
 
 vector<Visit> ClinicService::getVisitsByAnimal(int animalId) {
@@ -178,6 +186,10 @@ void ClinicService::stockIn(int itemId, int qty) {
     InventoryItem item = _inventory.getById(itemId);
     item += qty;
     _inventory.update(item);
+}
+
+void ClinicService::removeInventoryItem(int itemId) {
+    _inventory.remove(itemId);
 }
 
 void ClinicService::stockOut(int itemId, int qty) {
@@ -250,6 +262,10 @@ double ClinicService::dischargeAnimal(int recordId, const string& dischargeDate)
     record.setTotalBill(total);
     _hospital.update(record);
     return total;
+}
+
+const vector<HospitalizationRecord>& ClinicService::getAllHospitalizations() {
+    return _hospital.getAll();
 }
 
 vector<HospitalizationRecord> ClinicService::getActiveHospitalizations() {
