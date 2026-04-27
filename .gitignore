@@ -7,3 +7,7 @@ Makefile
 moc_*.cpp
 moc_predefs.h
 .qmake.stash
+*.dSYM
+vpms/data/*.dat
+vpms/test_all
+vpms/test_all_dbg
