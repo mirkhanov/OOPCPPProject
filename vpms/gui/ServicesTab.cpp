@@ -84,7 +84,7 @@ void ServicesTab::onAdd() {
     if (nameEdit->text().trimmed().isEmpty()) { QMessageBox::warning(this, "Error", "Name cannot be empty."); return; }
 
     try {
-        _service.addService(typeBox->currentText().toLower().toStdString(),
+        _service.addService(typeBox->currentText().toUpper().toStdString(),
                             nameEdit->text().toStdString(),
                             priceSpin->value(),
                             extraEdit->text().toStdString());

@@ -26,8 +26,10 @@ const vector<Animal*>& AnimalRepository::getAll() const { return _items; }
 void AnimalRepository::update(Animal* item) {
     for (int i = 0; i < (int)_items.size(); i++) {
         if (_items[i]->getId() == item->getId()) {
-            delete _items[i];
-            _items[i] = item;
+            if (_items[i] != item) {
+                delete _items[i];
+                _items[i] = item;
+            }
             save();
             return;
         }

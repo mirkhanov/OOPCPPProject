@@ -21,7 +21,7 @@ public:
         in.ignore();
         getline(in, _surgeryType);
         in >> _requiresAnesthesia;
-        string s; in >> s;
+        string s; in.ignore(); getline(in, s);
     }
 
 private:

@@ -76,10 +76,10 @@ protected:
         ifstream file(_filePath);
         if (!file.is_open()) return;
 
-        while (file.peek() != EOF) {
+        while (file >> ws, !file.eof()) {
             T item;
             item.deserialize(file);
-            if (file.good() || file.eof()) {
+            if (!file.fail()) {
                 _items.push_back(item);
             }
         }

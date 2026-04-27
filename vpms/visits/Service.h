@@ -24,7 +24,8 @@ public:
     }
 
     void deserialize(istream& in) override {
-        in >> _typeTag >> _id;
+        // typeTag already consumed by ServiceRepository::load
+        in >> _id;
         in.ignore();
         getline(in, _name);
         in >> _basePrice;

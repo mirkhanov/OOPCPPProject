@@ -86,7 +86,7 @@ void AnimalsTab::onAdd() {
     if (nameEdit->text().trimmed().isEmpty()) { QMessageBox::warning(this, "Error", "Name cannot be empty."); return; }
 
     try {
-        _service.addAnimal(typeBox->currentText().toLower().toStdString(),
+        _service.addAnimal(typeBox->currentText().toUpper().toStdString(),
                            nameEdit->text().toStdString(),
                            ageSpin->value(),
                            ownerSpin->value());

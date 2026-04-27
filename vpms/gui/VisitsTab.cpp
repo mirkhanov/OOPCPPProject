@@ -7,7 +7,8 @@
 #include <QDialogButtonBox>
 #include <QSpinBox>
 #include <QLineEdit>
-#include <QLabel>
+#include <QComboBox>
+#include <QListWidget>
 
 VisitsTab::VisitsTab(ClinicService& service, QWidget* parent)
     : QWidget(parent), _service(service)
@@ -54,25 +55,41 @@ void VisitsTab::loadData() {
 }
 
 void VisitsTab::onAdd() {
+    const auto& animals = _service.getAllAnimals();
+    const auto& services = _service.getAllServices();
+
+    if (animals.empty()) {
+        QMessageBox::warning(this, "Error", "No animals registered. Add an animal first.");
+        return;
+    }
+
     QDialog dlg(this);
     dlg.setWindowTitle("New Visit");
     QFormLayout form(&dlg);
 
-    QSpinBox* animalSpin = new QSpinBox(&dlg);
-    animalSpin->setRange(1, 99999);
-    form.addRow("Animal ID:", animalSpin);
-
-    QSpinBox* ownerSpin = new QSpinBox(&dlg);
-    ownerSpin->setRange(1, 99999);
-    form.addRow("Owner ID:", ownerSpin);
+    QComboBox* animalBox = new QComboBox(&dlg);
+    for (Animal* a : animals)
+        animalBox->addItem(QString("[%1] %2 (Owner: %3)")
+            .arg(a->getId()).arg(QString::fromStdString(a->getName())).arg(a->getOwnerId()),
+            a->getId());
+    form.addRow("Animal:", animalBox);
 
     QLineEdit* dateEdit = new QLineEdit(&dlg);
     dateEdit->setPlaceholderText("YYYY-MM-DD");
     form.addRow("Date:", dateEdit);
 
-    QLineEdit* servicesEdit = new QLineEdit(&dlg);
-    servicesEdit->setPlaceholderText("e.g. 1,2,3  (comma-separated IDs)");
-    form.addRow("Service IDs:", servicesEdit);
+    QListWidget* serviceList = new QListWidget(&dlg);
+    serviceList->setSelectionMode(QAbstractItemView::MultiSelection);
+    serviceList->setMaximumHeight(120);
+    for (Service* s : services) {
+        QListWidgetItem* item = new QListWidgetItem(
+            QString("[%1] %2 — $%3").arg(s->getId())
+                .arg(QString::fromStdString(s->getName()))
+                .arg(s->getFinalPrice(), 0, 'f', 2));
+        item->setData(Qt::UserRole, s->getId());
+        serviceList->addItem(item);
+    }
+    form.addRow("Services:", serviceList);
 
     QDialogButtonBox* btns = new QDialogButtonBox(
         QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
@@ -83,17 +100,15 @@ void VisitsTab::onAdd() {
     if (dlg.exec() != QDialog::Accepted) return;
     if (dateEdit->text().trimmed().isEmpty()) { QMessageBox::warning(this, "Error", "Date cannot be empty."); return; }
 
+    int animalId = animalBox->currentData().toInt();
+    int ownerId  = _service.getAnimal(animalId)->getOwnerId();
+
     vector<int> serviceIds;
-    if (!servicesEdit->text().trimmed().isEmpty()) {
-        for (const QString& part : servicesEdit->text().split(',')) {
-            bool ok;
-            int sid = part.trimmed().toInt(&ok);
-            if (ok) serviceIds.push_back(sid);
-        }
-    }
+    for (QListWidgetItem* item : serviceList->selectedItems())
+        serviceIds.push_back(item->data(Qt::UserRole).toInt());
 
     try {
-        _service.createVisit(animalSpin->value(), ownerSpin->value(),
+        _service.createVisit(animalId, ownerId,
                              dateEdit->text().toStdString(), serviceIds);
         loadData();
     } catch (const exception& e) {

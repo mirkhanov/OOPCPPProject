@@ -18,7 +18,7 @@ public:
     void deserialize(istream& in) override {
         Service::deserialize(in);
         in >> _durationMinutes;
-        string s; in >> s;
+        string s; in.ignore(); getline(in, s);
     }
 
 private:
