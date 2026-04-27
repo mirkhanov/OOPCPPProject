@@ -3,11 +3,12 @@
 #include <QTableWidget>
 #include <QPushButton>
 #include <QSplitter>
-#include <QTabWidget>
+#include <QScrollArea>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QLabel>
 #include <QGroupBox>
+#include <QFrame>
 #include "../core/ClinicService.h"
 
 class ClientsTab : public QWidget {
@@ -30,32 +31,30 @@ private slots:
 private:
     ClinicService& _service;
 
-    // Left: owners
+    // Left panel
     QTableWidget* _ownerTable;
     QPushButton*  _ownerAddBtn;
     QPushButton*  _ownerEditBtn;
     QPushButton*  _ownerDeleteBtn;
 
-    // Right: detail tabs
-    QTabWidget*   _detailTabs;
-    QLabel*       _detailHeader;
+    // Right: unified detail
+    QLabel*       _nameLabel;
+    QLabel*       _contactLabel;
 
-    // Animals tab
     QTableWidget* _animalTable;
     QPushButton*  _animalAddBtn;
     QPushButton*  _animalEditBtn;
     QPushButton*  _animalDeleteBtn;
 
-    // Visits tab
     QTableWidget* _visitTable;
     QPushButton*  _visitAddBtn;
     QPushButton*  _visitCancelBtn;
 
+    QWidget*      _detailWidget;  // shown/hidden based on selection
+
     void setupUI();
     void loadOwners();
     void refreshDetail(int ownerId);
-    void loadAnimals(int ownerId);
-    void loadVisits(int ownerId);
     int  selectedOwnerId() const;
     int  selectedAnimalId() const;
     int  selectedVisitId() const;
