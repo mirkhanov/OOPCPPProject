@@ -2,8 +2,7 @@
 #include <QMainWindow>
 #include <QTabWidget>
 #include "../core/ClinicService.h"
-#include "OwnersTab.h"
-#include "AnimalsTab.h"
+#include "ClientsTab.h"
 #include "VisitsTab.h"
 #include "ServicesTab.h"
 #include "InventoryTab.h"
@@ -18,8 +17,7 @@ public:
 private:
     ClinicService&      _service;
     QTabWidget*         _tabs;
-    OwnersTab*          _ownersTab;
-    AnimalsTab*         _animalsTab;
+    ClientsTab*         _clientsTab;
     VisitsTab*          _visitsTab;
     ServicesTab*        _servicesTab;
     InventoryTab*       _inventoryTab;

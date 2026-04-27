@@ -12,8 +12,7 @@ SOURCES += \
     visits/ServiceRepository.cpp \
     visits/ServiceFactory.cpp \
     gui/MainWindow.cpp \
-    gui/OwnersTab.cpp \
-    gui/AnimalsTab.cpp \
+    gui/ClientsTab.cpp \
     gui/VisitsTab.cpp \
     gui/ServicesTab.cpp \
     gui/InventoryTab.cpp \
@@ -44,8 +43,7 @@ HEADERS += \
     inventory/InventoryItem.h \
     inventory/HospitalizationRecord.h \
     gui/MainWindow.h \
-    gui/OwnersTab.h \
-    gui/AnimalsTab.h \
+    gui/ClientsTab.h \
     gui/VisitsTab.h \
     gui/ServicesTab.h \
     gui/InventoryTab.h \
