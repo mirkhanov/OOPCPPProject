@@ -7,11 +7,13 @@
 using namespace std;
 
 Animal* AnimalFactory::create(const string& typeTag, int id,
-                               const string& name, int age, int ownerId) {
-    if (typeTag == "DOG")     return new Dog(id, name, age, ownerId, "Unknown");
-    if (typeTag == "CAT")     return new Cat(id, name, age, ownerId, "Unknown");
-    if (typeTag == "BIRD")    return new Bird(id, name, age, ownerId, "Unknown");
-    if (typeTag == "REPTILE") return new Reptile(id, name, age, ownerId, "Unknown");
+                               const string& name, int age, int ownerId,
+                               const string& extra) {
+    string e = extra.empty() ? "Unknown" : extra;
+    if (typeTag == "DOG")     return new Dog(id, name, age, ownerId, e);
+    if (typeTag == "CAT")     return new Cat(id, name, age, ownerId, e);
+    if (typeTag == "BIRD")    return new Bird(id, name, age, ownerId, e);
+    if (typeTag == "REPTILE") return new Reptile(id, name, age, ownerId, e);
     throw ValidationException("Unknown animal type: " + typeTag);
 }
 

@@ -4,6 +4,7 @@
 #include <QPushButton>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
+#include <QLabel>
 #include "../core/ClinicService.h"
 
 class HospitalizationTab : public QWidget {
@@ -15,15 +16,15 @@ public:
 private slots:
     void onAdmit();
     void onDischarge();
-    void onAddService();
+    void onActiveSelectionChanged();
 
 private:
-    ClinicService& _service;
-    QTableWidget*  _table;
+    ClinicService& _svc;
+    QTableWidget*  _activeTable;
+    QTableWidget*  _dischargedTable;
     QPushButton*   _admitBtn;
     QPushButton*   _dischargeBtn;
-    QPushButton*   _addServiceBtn;
 
     void setupUI();
-    void loadData();
+    void loadTables();
 };

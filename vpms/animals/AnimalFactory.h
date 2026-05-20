@@ -6,6 +6,7 @@ using namespace std;
 class AnimalFactory {
 public:
     static Animal* create(const string& typeTag, int id,
-                          const string& name, int age, int ownerId);
+                          const string& name, int age, int ownerId,
+                          const string& extra = "");
     static Animal* createFromStream(const string& typeTag, istream& in);
 };

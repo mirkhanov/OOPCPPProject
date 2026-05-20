@@ -1,61 +1,57 @@
 #pragma once
 #include <QWidget>
+#include <QListWidget>
 #include <QTableWidget>
 #include <QPushButton>
-#include <QSplitter>
-#include <QScrollArea>
-#include <QHBoxLayout>
-#include <QVBoxLayout>
 #include <QLabel>
-#include <QGroupBox>
-#include <QFrame>
+#include <QLineEdit>
 #include "../core/ClinicService.h"
 
 class ClientsTab : public QWidget {
     Q_OBJECT
-
 public:
-    explicit ClientsTab(ClinicService& service, QWidget* parent = nullptr);
+    explicit ClientsTab(ClinicService& svc, QWidget* parent = nullptr);
 
 private slots:
     void onOwnerSelected();
+    void onAnimalSelected();
     void onOwnerAdd();
     void onOwnerEdit();
     void onOwnerDelete();
     void onAnimalAdd();
     void onAnimalEdit();
     void onAnimalDelete();
-    void onVisitAdd();
+    void onVisitNew();
     void onVisitCancel();
+    void onOwnerSearch(const QString& text);
 
 private:
-    ClinicService& _service;
+    ClinicService& _svc;
 
-    // Left panel
-    QTableWidget* _ownerTable;
+    QLineEdit*    _ownerSearch;
+    QListWidget*  _ownerList;
     QPushButton*  _ownerAddBtn;
     QPushButton*  _ownerEditBtn;
     QPushButton*  _ownerDeleteBtn;
 
-    // Right: unified detail
-    QLabel*       _nameLabel;
-    QLabel*       _contactLabel;
-
+    QLabel*       _animalsHeader;
     QTableWidget* _animalTable;
     QPushButton*  _animalAddBtn;
     QPushButton*  _animalEditBtn;
     QPushButton*  _animalDeleteBtn;
 
+    QLabel*       _visitsHeader;
     QTableWidget* _visitTable;
-    QPushButton*  _visitAddBtn;
+    QPushButton*  _visitNewBtn;
     QPushButton*  _visitCancelBtn;
 
-    QWidget*      _detailWidget;  // shown/hidden based on selection
-
     void setupUI();
-    void loadOwners();
-    void refreshDetail(int ownerId);
-    int  selectedOwnerId() const;
+    void loadOwners(const QString& filter = "");
+    void loadAnimals(int ownerId);
+    void loadVisits(int animalId);
+    int  selectedOwnerId()  const;
     int  selectedAnimalId() const;
-    int  selectedVisitId() const;
+    int  selectedVisitId()  const;
+    void clearAnimals();
+    void clearVisits();
 };

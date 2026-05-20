@@ -9,10 +9,20 @@ using namespace std;
 Service* ServiceFactory::create(const string& typeTag, int id,
                                  const string& name, double price,
                                  const string& extra) {
-    if (typeTag == "CONSULTATION") return new Consultation(id, name, price, 30);
-    if (typeTag == "VACCINATION")  return new Vaccination(id, name, price, extra);
-    if (typeTag == "SURGERY")      return new Surgery(id, name, price, extra, false);
-    if (typeTag == "GROOMING")     return new Grooming(id, name, price, extra.empty() ? "Full" : extra);
+    if (typeTag == "CONSULTATION") {
+        int dur = extra.empty() ? 30 : stoi(extra);
+        return new Consultation(id, name, price, dur);
+    }
+    if (typeTag == "VACCINATION")
+        return new Vaccination(id, name, price, extra.empty() ? "General" : extra);
+    if (typeTag == "SURGERY") {
+        size_t pos = extra.find('|');
+        string type = (pos != string::npos) ? extra.substr(0, pos) : extra;
+        bool anesthesia = (pos != string::npos) && (extra.substr(pos + 1) == "1");
+        return new Surgery(id, name, price, type.empty() ? "General" : type, anesthesia);
+    }
+    if (typeTag == "GROOMING")
+        return new Grooming(id, name, price, extra.empty() ? "Standard" : extra);
     throw ValidationException("Unknown service type: " + typeTag);
 }
 

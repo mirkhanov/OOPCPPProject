@@ -1,468 +1,492 @@
 #include "ClientsTab.h"
-#include <QMessageBox>
-#include <QHeaderView>
-#include <QComboBox>
-#include <QDialog>
-#include <QFormLayout>
-#include <QDialogButtonBox>
-#include <QSpinBox>
-#include <QListWidget>
-#include <QDateEdit>
-#include <QDate>
-#include <QLineEdit>
-#include <QScrollArea>
+#include "../animals/Dog.h"
+#include "../animals/Cat.h"
+#include "../animals/Bird.h"
+#include "../animals/Reptile.h"
+#include "../core/exceptions.h"
 
-static QFrame* makeLine() {
-    QFrame* line = new QFrame;
-    line->setFrameShape(QFrame::HLine);
-    line->setStyleSheet("color: #444;");
-    return line;
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QSplitter>
+#include <QLabel>
+#include <QLineEdit>
+#include <QHeaderView>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QFormLayout>
+#include <QSpinBox>
+#include <QComboBox>
+#include <QDateEdit>
+#include <QListWidget>
+#include <QMessageBox>
+#include <QDate>
+
+static QHBoxLayout* btnRow(std::initializer_list<QPushButton*> btns) {
+    auto* row = new QHBoxLayout;
+    row->setContentsMargins(0, 2, 0, 4);
+    row->addStretch();
+    for (auto* b : btns) row->addWidget(b);
+    return row;
 }
 
-ClientsTab::ClientsTab(ClinicService& service, QWidget* parent)
-    : QWidget(parent), _service(service)
+static QString typeLabel(const string& tag) {
+    if (tag == "DOG")     return "Dog";
+    if (tag == "CAT")     return "Cat";
+    if (tag == "BIRD")    return "Bird";
+    if (tag == "REPTILE") return "Reptile";
+    return QString::fromStdString(tag);
+}
+
+static QString svcName(ClinicService& svc, int sid) {
+    for (Service* s : svc.getAllServices())
+        if (s->getId() == sid) return QString::fromStdString(s->getName());
+    return QString("#%1").arg(sid);
+}
+
+ClientsTab::ClientsTab(ClinicService& svc, QWidget* parent)
+    : QWidget(parent), _svc(svc)
 {
     setupUI();
     loadOwners();
 }
 
-void ClientsTab::setupUI() {
-    // ── LEFT: client list ─────────────────────────────
-    _ownerTable = new QTableWidget(this);
-    _ownerTable->setColumnCount(2);
-    _ownerTable->setHorizontalHeaderLabels({"Name", "Contact"});
-    _ownerTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    _ownerTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-    _ownerTable->setSelectionMode(QAbstractItemView::SingleSelection);
-    _ownerTable->horizontalHeader()->setStretchLastSection(true);
-    _ownerTable->verticalHeader()->setVisible(false);
+void ClientsTab::setupUI()
+{
+    // ─── Left: owners ─────────────────────────────────────────
+    _ownerSearch = new QLineEdit(this);
+    _ownerSearch->setPlaceholderText("Search clients…");
+    _ownerSearch->setClearButtonEnabled(true);
 
-    _ownerAddBtn    = new QPushButton("+ Add Client", this);
-    _ownerEditBtn   = new QPushButton("Edit",         this);
-    _ownerDeleteBtn = new QPushButton("Delete",       this);
+    _ownerList = new QListWidget(this);
 
-    QHBoxLayout* ownerBtns = new QHBoxLayout;
-    ownerBtns->addWidget(_ownerAddBtn);
-    ownerBtns->addWidget(_ownerEditBtn);
-    ownerBtns->addWidget(_ownerDeleteBtn);
+    _ownerAddBtn    = new QPushButton("Add",    this);
+    _ownerEditBtn   = new QPushButton("Edit",   this);
+    _ownerDeleteBtn = new QPushButton("Delete", this);
+    _ownerEditBtn->setEnabled(false);
+    _ownerDeleteBtn->setEnabled(false);
 
-    QWidget* leftPanel = new QWidget(this);
-    QVBoxLayout* leftL = new QVBoxLayout(leftPanel);
-    leftL->setContentsMargins(0, 0, 0, 0);
-    QLabel* clientsTitle = new QLabel("Clients", leftPanel);
-    clientsTitle->setStyleSheet("font-size:13px; font-weight:bold; padding:4px 0;");
-    leftL->addWidget(clientsTitle);
-    leftL->addWidget(_ownerTable);
-    leftL->addLayout(ownerBtns);
+    auto* lw = new QWidget(this);
+    auto* ll = new QVBoxLayout(lw);
+    ll->setContentsMargins(6,6,6,6); ll->setSpacing(4);
+    ll->addWidget(new QLabel("<b>Clients</b>"));
+    ll->addWidget(_ownerSearch);
+    ll->addWidget(_ownerList, 1);
+    ll->addLayout(btnRow({_ownerAddBtn, _ownerEditBtn, _ownerDeleteBtn}));
 
-    // ── RIGHT: unified detail panel ───────────────────
-    _detailWidget = new QWidget(this);
-    QVBoxLayout* detailL = new QVBoxLayout(_detailWidget);
-    detailL->setContentsMargins(8, 4, 8, 4);
-    detailL->setSpacing(10);
+    // ─── Middle: animals ──────────────────────────────────────
+    _animalsHeader = new QLabel("<i>\xe2\x86\x90 Select a client</i>", this);
 
-    // Client info header
-    _nameLabel    = new QLabel(this);
-    _nameLabel->setStyleSheet("font-size:16px; font-weight:bold;");
-    _contactLabel = new QLabel(this);
-    _contactLabel->setStyleSheet("color:gray; font-size:12px;");
-    detailL->addWidget(_nameLabel);
-    detailL->addWidget(_contactLabel);
-    detailL->addWidget(makeLine());
-
-    // Animals section
-    QLabel* animalsTitle = new QLabel("Animals", _detailWidget);
-    animalsTitle->setStyleSheet("font-size:13px; font-weight:bold;");
-
-    _animalTable = new QTableWidget(_detailWidget);
-    _animalTable->setColumnCount(4);
-    _animalTable->setHorizontalHeaderLabels({"Type", "Name", "Age", "Species Info"});
-    _animalTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    _animalTable = new QTableWidget(0, 4, this);
+    _animalTable->setHorizontalHeaderLabels({"Name","Type","Age","Info"});
+    _animalTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+    _animalTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+    _animalTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+    _animalTable->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Stretch);
     _animalTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-    _animalTable->setSelectionMode(QAbstractItemView::SingleSelection);
-    _animalTable->horizontalHeader()->setStretchLastSection(true);
-    _animalTable->verticalHeader()->setVisible(false);
-    _animalTable->setMaximumHeight(160);
+    _animalTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    _animalTable->setAlternatingRowColors(true);
+    _animalTable->verticalHeader()->hide();
 
-    _animalAddBtn    = new QPushButton("+ Add Animal", _detailWidget);
-    _animalEditBtn   = new QPushButton("Edit",         _detailWidget);
-    _animalDeleteBtn = new QPushButton("Delete",       _detailWidget);
+    _animalAddBtn    = new QPushButton("Add",    this);
+    _animalEditBtn   = new QPushButton("Edit",   this);
+    _animalDeleteBtn = new QPushButton("Delete", this);
+    _animalAddBtn->setEnabled(false);
+    _animalEditBtn->setEnabled(false);
+    _animalDeleteBtn->setEnabled(false);
 
-    QHBoxLayout* animalBtns = new QHBoxLayout;
-    animalBtns->addWidget(_animalAddBtn);
-    animalBtns->addWidget(_animalEditBtn);
-    animalBtns->addWidget(_animalDeleteBtn);
-    animalBtns->addStretch();
+    auto* mw = new QWidget(this);
+    auto* ml = new QVBoxLayout(mw);
+    ml->setContentsMargins(6,6,6,6); ml->setSpacing(4);
+    ml->addWidget(new QLabel("<b>Animals</b>"));
+    ml->addWidget(_animalsHeader);
+    ml->addWidget(_animalTable, 1);
+    ml->addLayout(btnRow({_animalAddBtn, _animalEditBtn, _animalDeleteBtn}));
 
-    detailL->addWidget(animalsTitle);
-    detailL->addWidget(_animalTable);
-    detailL->addLayout(animalBtns);
-    detailL->addWidget(makeLine());
+    // ─── Right: visits ────────────────────────────────────────
+    _visitsHeader = new QLabel("<i>\xe2\x86\x90 Select an animal</i>", this);
 
-    // Visits section
-    QLabel* visitsTitle = new QLabel("Visit History", _detailWidget);
-    visitsTitle->setStyleSheet("font-size:13px; font-weight:bold;");
-
-    _visitTable = new QTableWidget(_detailWidget);
-    _visitTable->setColumnCount(4);
-    _visitTable->setHorizontalHeaderLabels({"Animal", "Date", "Services", "Total ($)"});
-    _visitTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    _visitTable = new QTableWidget(0, 3, this);
+    _visitTable->setHorizontalHeaderLabels({"Date","Services","Cost ($)"});
+    _visitTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+    _visitTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+    _visitTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
     _visitTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-    _visitTable->setSelectionMode(QAbstractItemView::SingleSelection);
-    _visitTable->horizontalHeader()->setStretchLastSection(true);
-    _visitTable->verticalHeader()->setVisible(false);
-    _visitTable->setMaximumHeight(200);
+    _visitTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    _visitTable->setAlternatingRowColors(true);
+    _visitTable->verticalHeader()->hide();
 
-    _visitAddBtn    = new QPushButton("+ New Visit",   _detailWidget);
-    _visitCancelBtn = new QPushButton("Cancel Visit",  _detailWidget);
+    _visitNewBtn    = new QPushButton("New Visit",    this);
+    _visitCancelBtn = new QPushButton("Cancel Visit", this);
+    _visitNewBtn->setEnabled(false);
+    _visitCancelBtn->setEnabled(false);
 
-    QHBoxLayout* visitBtns = new QHBoxLayout;
-    visitBtns->addWidget(_visitAddBtn);
-    visitBtns->addWidget(_visitCancelBtn);
-    visitBtns->addStretch();
+    auto* rw = new QWidget(this);
+    auto* rl = new QVBoxLayout(rw);
+    rl->setContentsMargins(6,6,6,6); rl->setSpacing(4);
+    rl->addWidget(new QLabel("<b>Visit History</b>"));
+    rl->addWidget(_visitsHeader);
+    rl->addWidget(_visitTable, 1);
+    rl->addLayout(btnRow({_visitNewBtn, _visitCancelBtn}));
 
-    detailL->addWidget(visitsTitle);
-    detailL->addWidget(_visitTable);
-    detailL->addLayout(visitBtns);
-    detailL->addStretch();
+    // ─── Splitter ─────────────────────────────────────────────
+    auto* spl = new QSplitter(Qt::Horizontal, this);
+    spl->addWidget(lw);
+    spl->addWidget(mw);
+    spl->addWidget(rw);
+    spl->setSizes({260,360,420});
 
-    // Wrap detail in scroll area
-    QScrollArea* scroll = new QScrollArea(this);
-    scroll->setWidget(_detailWidget);
-    scroll->setWidgetResizable(true);
-    scroll->setFrameShape(QFrame::NoFrame);
+    auto* main = new QVBoxLayout(this);
+    main->setContentsMargins(6,6,6,6);
+    main->addWidget(spl);
 
-    // Placeholder when nothing selected
-    QLabel* placeholder = new QLabel("← Select a client to view details", this);
-    placeholder->setAlignment(Qt::AlignCenter);
-    placeholder->setStyleSheet("color:gray; font-size:14px;");
+    // ─── Connections ──────────────────────────────────────────
+    connect(_ownerSearch, &QLineEdit::textChanged,     this, &ClientsTab::onOwnerSearch);
+    connect(_ownerList,   &QListWidget::currentItemChanged,
+            this, [this](QListWidgetItem*) { onOwnerSelected(); });
+    connect(_animalTable, &QTableWidget::currentCellChanged,
+            this, [this](int,int,int,int) { onAnimalSelected(); });
+    connect(_visitTable,  &QTableWidget::currentCellChanged,
+            this, [this](int row,int,int,int) { _visitCancelBtn->setEnabled(row>=0); });
 
-    // Stack: placeholder on bottom, detail on top (hidden by default)
-    QWidget* rightPanel = new QWidget(this);
-    QVBoxLayout* rightL = new QVBoxLayout(rightPanel);
-    rightL->setContentsMargins(0, 0, 0, 0);
-    rightL->addWidget(placeholder);
-    rightL->addWidget(scroll);
-    _detailWidget->hide();
-    // swap: show scroll when owner selected
-    // we achieve this by toggling visibility
-
-    // Keep references
-    connect(_ownerTable, &QTableWidget::itemSelectionChanged, this, &ClientsTab::onOwnerSelected);
-
-    // Actually build the right panel properly:
-    // We need placeholder to hide when detail shows.
-    // Use a stacked layout approach via show/hide on the scroll area.
-    // Simplest: just put placeholder inside scroll with conditional.
-    // Let's just have rightL contain both and manage visibility.
-    // Remove placeholder from rightL since we handle below:
-    rightL->removeWidget(placeholder);
-    rightL->removeWidget(scroll);
-
-    // Single right content: show placeholder OR scroll
-    rightL->addWidget(placeholder);
-    rightL->addWidget(scroll);
-    placeholder->show();
-    scroll->hide();
-
-    // Store refs for show/hide in slot
-    connect(_ownerTable, &QTableWidget::itemSelectionChanged, this, [=]() {
-        bool hasSelection = _ownerTable->currentRow() >= 0;
-        placeholder->setVisible(!hasSelection);
-        scroll->setVisible(hasSelection);
-    });
-
-    // ── Splitter ──────────────────────────────────────
-    QSplitter* splitter = new QSplitter(Qt::Horizontal, this);
-    splitter->addWidget(leftPanel);
-    splitter->addWidget(rightPanel);
-    splitter->setSizes({260, 600});
-
-    QVBoxLayout* main = new QVBoxLayout(this);
-    main->setContentsMargins(0, 0, 0, 0);
-    main->addWidget(splitter);
-
-    // Connections
-    connect(_ownerAddBtn,    &QPushButton::clicked, this, &ClientsTab::onOwnerAdd);
-    connect(_ownerEditBtn,   &QPushButton::clicked, this, &ClientsTab::onOwnerEdit);
-    connect(_ownerDeleteBtn, &QPushButton::clicked, this, &ClientsTab::onOwnerDelete);
-    connect(_animalAddBtn,   &QPushButton::clicked, this, &ClientsTab::onAnimalAdd);
-    connect(_animalEditBtn,  &QPushButton::clicked, this, &ClientsTab::onAnimalEdit);
-    connect(_animalDeleteBtn,&QPushButton::clicked, this, &ClientsTab::onAnimalDelete);
-    connect(_visitAddBtn,    &QPushButton::clicked, this, &ClientsTab::onVisitAdd);
-    connect(_visitCancelBtn, &QPushButton::clicked, this, &ClientsTab::onVisitCancel);
+    connect(_ownerAddBtn,     &QPushButton::clicked, this, &ClientsTab::onOwnerAdd);
+    connect(_ownerEditBtn,    &QPushButton::clicked, this, &ClientsTab::onOwnerEdit);
+    connect(_ownerDeleteBtn,  &QPushButton::clicked, this, &ClientsTab::onOwnerDelete);
+    connect(_animalAddBtn,    &QPushButton::clicked, this, &ClientsTab::onAnimalAdd);
+    connect(_animalEditBtn,   &QPushButton::clicked, this, &ClientsTab::onAnimalEdit);
+    connect(_animalDeleteBtn, &QPushButton::clicked, this, &ClientsTab::onAnimalDelete);
+    connect(_visitNewBtn,     &QPushButton::clicked, this, &ClientsTab::onVisitNew);
+    connect(_visitCancelBtn,  &QPushButton::clicked, this, &ClientsTab::onVisitCancel);
 }
 
-// ── Data ─────────────────────────────────────────────
-
-void ClientsTab::loadOwners() {
-    const auto& owners = _service.getAllOwners();
-    _ownerTable->setRowCount((int)owners.size());
-    for (int i = 0; i < (int)owners.size(); i++) {
-        auto* nameItem = new QTableWidgetItem(QString::fromStdString(owners[i].getName()));
-        nameItem->setData(Qt::UserRole, owners[i].getId());
-        _ownerTable->setItem(i, 0, nameItem);
-        _ownerTable->setItem(i, 1,
-            new QTableWidgetItem(QString::fromStdString(owners[i].getContactInfo())));
+void ClientsTab::loadOwners(const QString& filter)
+{
+    int prevId = selectedOwnerId();
+    _ownerList->blockSignals(true);
+    _ownerList->clear();
+    for (const Owner& o : _svc.getAllOwners()) {
+        QString name = QString::fromStdString(o.getName());
+        if (!filter.isEmpty() && !name.contains(filter, Qt::CaseInsensitive)) continue;
+        auto* item = new QListWidgetItem(
+            name + "   " + QString::fromStdString(o.getContactInfo()), _ownerList);
+        item->setData(Qt::UserRole, o.getId());
     }
-}
-
-void ClientsTab::refreshDetail(int ownerId) {
-    // Animals
-    auto animals = _service.getAnimalsByOwner(ownerId);
-    _animalTable->setRowCount((int)animals.size());
-    for (int i = 0; i < (int)animals.size(); i++) {
-        Animal* a = animals[i];
-        auto* t = new QTableWidgetItem(QString::fromStdString(a->getTypeTag()));
-        t->setData(Qt::UserRole, a->getId());
-        _animalTable->setItem(i, 0, t);
-        _animalTable->setItem(i, 1, new QTableWidgetItem(QString::fromStdString(a->getName())));
-        _animalTable->setItem(i, 2, new QTableWidgetItem(QString::number(a->getAge()) + " yrs"));
-        _animalTable->setItem(i, 3, new QTableWidgetItem(QString::fromStdString(a->getSpeciesInfo())));
-    }
-
-    // Visits
-    auto visits = _service.getVisitsByOwner(ownerId);
-    _visitTable->setRowCount((int)visits.size());
-    for (int i = 0; i < (int)visits.size(); i++) {
-        const Visit& v = visits[i];
-        QString animalName = QString::number(v.getAnimalId());
-        for (Animal* a : _service.getAllAnimals())
-            if (a->getId() == v.getAnimalId()) { animalName = QString::fromStdString(a->getName()); break; }
-
-        QString svcStr;
-        for (int sid : v.getServiceIds()) {
-            for (Service* s : _service.getAllServices())
-                if (s->getId() == sid) {
-                    if (!svcStr.isEmpty()) svcStr += ", ";
-                    svcStr += QString::fromStdString(s->getName());
-                    break;
-                }
+    for (int i = 0; i < _ownerList->count(); ++i) {
+        if (_ownerList->item(i)->data(Qt::UserRole).toInt() == prevId) {
+            _ownerList->setCurrentRow(i); break;
         }
-        if (svcStr.isEmpty()) svcStr = "—";
+    }
+    _ownerList->blockSignals(false);
+    bool sel = (_ownerList->currentItem() != nullptr);
+    _ownerEditBtn->setEnabled(sel);
+    _ownerDeleteBtn->setEnabled(sel);
+    _animalAddBtn->setEnabled(sel);
+}
 
-        auto* vi = new QTableWidgetItem(animalName);
-        vi->setData(Qt::UserRole, v.getId());
-        _visitTable->setItem(i, 0, vi);
-        _visitTable->setItem(i, 1, new QTableWidgetItem(QString::fromStdString(v.getDate())));
-        _visitTable->setItem(i, 2, new QTableWidgetItem(svcStr));
-        _visitTable->setItem(i, 3, new QTableWidgetItem(QString::number(v.getTotalCost(), 'f', 2)));
+void ClientsTab::loadAnimals(int ownerId)
+{
+    clearVisits();
+    _animalTable->setRowCount(0);
+    try {
+        Owner& o = _svc.getOwner(ownerId);
+        _animalsHeader->setText(
+            QString("<b>%1</b>   <span style='color:#555'>%2</span>")
+                .arg(QString::fromStdString(o.getName()))
+                .arg(QString::fromStdString(o.getContactInfo())));
+    } catch (...) { return; }
+
+    for (Animal* a : _svc.getAnimalsByOwner(ownerId)) {
+        int row = _animalTable->rowCount();
+        _animalTable->insertRow(row);
+        auto* nameItem = new QTableWidgetItem(QString::fromStdString(a->getName()));
+        nameItem->setData(Qt::UserRole, a->getId());
+        _animalTable->setItem(row, 0, nameItem);
+        _animalTable->setItem(row, 1, new QTableWidgetItem(typeLabel(a->getTypeTag())));
+        _animalTable->setItem(row, 2, new QTableWidgetItem(QString::number(a->getAge()) + " yr"));
+        _animalTable->setItem(row, 3, new QTableWidgetItem(
+            QString::fromStdString(a->getSpeciesInfo())));
     }
 }
 
-// ── Slots ─────────────────────────────────────────────
+void ClientsTab::loadVisits(int animalId)
+{
+    _visitTable->setRowCount(0);
+    try {
+        Animal* a = _svc.getAnimal(animalId);
+        _visitsHeader->setText(
+            QString("<b>%1</b>   <span style='color:#555'>%2</span>")
+                .arg(QString::fromStdString(a->getName()))
+                .arg(typeLabel(a->getTypeTag())));
+    } catch (...) { return; }
+
+    for (const Visit& v : _svc.getVisitsByAnimal(animalId)) {
+        int row = _visitTable->rowCount();
+        _visitTable->insertRow(row);
+        QStringList names;
+        for (int sid : v.getServiceIds()) names << svcName(_svc, sid);
+        auto* di = new QTableWidgetItem(QString::fromStdString(v.getDate()));
+        di->setData(Qt::UserRole, v.getId());
+        _visitTable->setItem(row, 0, di);
+        _visitTable->setItem(row, 1, new QTableWidgetItem(names.join(", ")));
+        _visitTable->setItem(row, 2, new QTableWidgetItem(
+            QString::number(v.getTotalCost(), 'f', 2)));
+    }
+    _visitCancelBtn->setEnabled(false);
+}
+
+void ClientsTab::clearAnimals()
+{
+    _animalTable->setRowCount(0);
+    _animalsHeader->setText("<i>\xe2\x86\x90 Select a client</i>");
+    _animalAddBtn->setEnabled(false);
+    _animalEditBtn->setEnabled(false);
+    _animalDeleteBtn->setEnabled(false);
+    clearVisits();
+}
+
+void ClientsTab::clearVisits()
+{
+    _visitTable->setRowCount(0);
+    _visitsHeader->setText("<i>\xe2\x86\x90 Select an animal</i>");
+    _visitNewBtn->setEnabled(false);
+    _visitCancelBtn->setEnabled(false);
+}
 
 int ClientsTab::selectedOwnerId() const {
-    int row = _ownerTable->currentRow();
-    if (row < 0) return -1;
-    return _ownerTable->item(row, 0)->data(Qt::UserRole).toInt();
+    auto* item = _ownerList->currentItem();
+    return item ? item->data(Qt::UserRole).toInt() : -1;
 }
-
 int ClientsTab::selectedAnimalId() const {
-    int row = _animalTable->currentRow();
-    if (row < 0) return -1;
-    return _animalTable->item(row, 0)->data(Qt::UserRole).toInt();
+    int row = _animalTable->currentRow(); if (row < 0) return -1;
+    auto* item = _animalTable->item(row, 0);
+    return item ? item->data(Qt::UserRole).toInt() : -1;
+}
+int ClientsTab::selectedVisitId() const {
+    int row = _visitTable->currentRow(); if (row < 0) return -1;
+    auto* item = _visitTable->item(row, 0);
+    return item ? item->data(Qt::UserRole).toInt() : -1;
 }
 
-int ClientsTab::selectedVisitId() const {
-    int row = _visitTable->currentRow();
-    if (row < 0) return -1;
-    return _visitTable->item(row, 0)->data(Qt::UserRole).toInt();
-}
+void ClientsTab::onOwnerSearch(const QString& text) { loadOwners(text); }
 
 void ClientsTab::onOwnerSelected() {
-    int id = selectedOwnerId();
-    if (id < 0) return;
-    int row = _ownerTable->currentRow();
-    _nameLabel->setText(_ownerTable->item(row, 0)->text());
-    _contactLabel->setText(_ownerTable->item(row, 1)->text());
-    _detailWidget->show();
-    refreshDetail(id);
+    int id = selectedOwnerId(); bool sel = id >= 0;
+    _ownerEditBtn->setEnabled(sel); _ownerDeleteBtn->setEnabled(sel);
+    _animalAddBtn->setEnabled(sel);
+    if (sel) loadAnimals(id); else clearAnimals();
 }
 
-// ── Owner CRUD ───────────────────────────────────────
+void ClientsTab::onAnimalSelected() {
+    int id = selectedAnimalId(); bool sel = id >= 0;
+    _animalEditBtn->setEnabled(sel); _animalDeleteBtn->setEnabled(sel);
+    _visitNewBtn->setEnabled(sel);
+    if (sel) loadVisits(id); else clearVisits();
+}
 
-void ClientsTab::onOwnerAdd() {
-    QDialog dlg(this);
-    dlg.setWindowTitle("Add Client");
-    dlg.setMinimumWidth(300);
-    QFormLayout form(&dlg);
-    QLineEdit* nameEdit    = new QLineEdit(&dlg); nameEdit->setPlaceholderText("Full name");
-    QLineEdit* contactEdit = new QLineEdit(&dlg); contactEdit->setPlaceholderText("Phone or email");
-    form.addRow("Name:",    nameEdit);
-    form.addRow("Contact:", contactEdit);
-    auto* btns = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
-    form.addRow(btns);
+void ClientsTab::onOwnerAdd()
+{
+    QDialog dlg(this); dlg.setWindowTitle("Add Client"); dlg.setMinimumWidth(320);
+    auto* form = new QFormLayout(&dlg);
+    auto* nameEdit = new QLineEdit(&dlg);
+    auto* contactEdit = new QLineEdit(&dlg);
+    contactEdit->setPlaceholderText("Phone / email");
+    form->addRow("Full name:",    nameEdit);
+    form->addRow("Contact info:", contactEdit);
+    auto* btns = new QDialogButtonBox(QDialogButtonBox::Ok|QDialogButtonBox::Cancel, &dlg);
+    form->addRow(btns);
     connect(btns, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     connect(btns, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
     if (dlg.exec() != QDialog::Accepted) return;
-    if (nameEdit->text().trimmed().isEmpty()) { QMessageBox::warning(this, "Error", "Name cannot be empty."); return; }
     try {
-        _service.addOwner(nameEdit->text().trimmed().toStdString(), contactEdit->text().trimmed().toStdString());
-        loadOwners();
+        _svc.addOwner(nameEdit->text().toStdString(), contactEdit->text().toStdString());
+        loadOwners(_ownerSearch->text());
     } catch (const exception& e) { QMessageBox::warning(this, "Error", e.what()); }
 }
 
-void ClientsTab::onOwnerEdit() {
-    int id = selectedOwnerId();
-    if (id < 0) { QMessageBox::information(this, "Edit", "Select a client first."); return; }
-    int row = _ownerTable->currentRow();
-    QDialog dlg(this); dlg.setWindowTitle("Edit Client"); dlg.setMinimumWidth(300);
-    QFormLayout form(&dlg);
-    QLineEdit* nameEdit    = new QLineEdit(_ownerTable->item(row, 0)->text(), &dlg);
-    QLineEdit* contactEdit = new QLineEdit(_ownerTable->item(row, 1)->text(), &dlg);
-    form.addRow("Name:",    nameEdit);
-    form.addRow("Contact:", contactEdit);
-    auto* btns = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
-    form.addRow(btns);
-    connect(btns, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
-    connect(btns, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
-    if (dlg.exec() != QDialog::Accepted || nameEdit->text().trimmed().isEmpty()) return;
+void ClientsTab::onOwnerEdit()
+{
+    int id = selectedOwnerId(); if (id < 0) return;
     try {
-        Owner o = _service.getOwner(id);
-        o.setName(nameEdit->text().trimmed().toStdString());
-        o.setContactInfo(contactEdit->text().trimmed().toStdString());
-        _service.updateOwner(o);
-        loadOwners();
-        _nameLabel->setText(nameEdit->text().trimmed());
-        _contactLabel->setText(contactEdit->text().trimmed());
+        Owner& o = _svc.getOwner(id);
+        QDialog dlg(this); dlg.setWindowTitle("Edit Client"); dlg.setMinimumWidth(320);
+        auto* form = new QFormLayout(&dlg);
+        auto* nameEdit    = new QLineEdit(QString::fromStdString(o.getName()),        &dlg);
+        auto* contactEdit = new QLineEdit(QString::fromStdString(o.getContactInfo()), &dlg);
+        form->addRow("Full name:",    nameEdit);
+        form->addRow("Contact info:", contactEdit);
+        auto* btns = new QDialogButtonBox(QDialogButtonBox::Ok|QDialogButtonBox::Cancel, &dlg);
+        form->addRow(btns);
+        connect(btns, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+        connect(btns, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+        if (dlg.exec() != QDialog::Accepted) return;
+        o.setName(nameEdit->text().toStdString());
+        o.setContactInfo(contactEdit->text().toStdString());
+        _svc.updateOwner(o);
+        loadOwners(_ownerSearch->text());
     } catch (const exception& e) { QMessageBox::warning(this, "Error", e.what()); }
 }
 
-void ClientsTab::onOwnerDelete() {
-    int id = selectedOwnerId();
-    if (id < 0) { QMessageBox::information(this, "Delete", "Select a client first."); return; }
-    QString name = _ownerTable->item(_ownerTable->currentRow(), 0)->text();
-    if (QMessageBox::question(this, "Delete Client",
-        QString("Delete \"%1\"?").arg(name), QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes) return;
+void ClientsTab::onOwnerDelete()
+{
+    int id = selectedOwnerId(); if (id < 0) return;
     try {
-        _service.removeOwner(id);
-        loadOwners();
-        _detailWidget->hide();
+        QString name = QString::fromStdString(_svc.getOwner(id).getName());
+        if (QMessageBox::question(this, "Delete Client",
+                "Delete \"" + name + "\"?\nAll their animals must be removed first.",
+                QMessageBox::Yes|QMessageBox::No) != QMessageBox::Yes) return;
+        _svc.removeOwner(id);
+        clearAnimals();
+        loadOwners(_ownerSearch->text());
     } catch (const exception& e) { QMessageBox::warning(this, "Error", e.what()); }
 }
 
-// ── Animal CRUD ──────────────────────────────────────
-
-void ClientsTab::onAnimalAdd() {
-    int ownerId = selectedOwnerId();
-    if (ownerId < 0) { QMessageBox::information(this, "Add Animal", "Select a client first."); return; }
-    QDialog dlg(this); dlg.setWindowTitle("Add Animal"); dlg.setMinimumWidth(300);
-    QFormLayout form(&dlg);
-    QComboBox* typeBox = new QComboBox(&dlg);
-    typeBox->addItems({"Dog", "Cat", "Bird", "Reptile"});
-    form.addRow("Type:", typeBox);
-    QLineEdit* nameEdit = new QLineEdit(&dlg); nameEdit->setPlaceholderText("Animal name");
-    form.addRow("Name:", nameEdit);
-    QSpinBox* ageSpin = new QSpinBox(&dlg); ageSpin->setRange(1, 100); ageSpin->setSuffix(" years");
-    form.addRow("Age:", ageSpin);
-    auto* btns = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
-    form.addRow(btns);
+void ClientsTab::onAnimalAdd()
+{
+    int ownerId = selectedOwnerId(); if (ownerId < 0) return;
+    QDialog dlg(this); dlg.setWindowTitle("Add Animal"); dlg.setMinimumWidth(340);
+    auto* form = new QFormLayout(&dlg);
+    auto* nameEdit  = new QLineEdit(&dlg);
+    auto* typeCombo = new QComboBox(&dlg);
+    typeCombo->addItems({"Dog","Cat","Bird","Reptile"});
+    auto* ageSpin = new QSpinBox(&dlg);
+    ageSpin->setRange(1,50); ageSpin->setSuffix(" years");
+    auto* extraLbl  = new QLabel("Breed:", &dlg);
+    auto* extraEdit = new QLineEdit(&dlg);
+    form->addRow("Name:",  nameEdit);
+    form->addRow("Type:",  typeCombo);
+    form->addRow("Age:",   ageSpin);
+    form->addRow(extraLbl, extraEdit);
+    static const char* xlbls[] = {"Breed:","Fur type:","Species:","Reptile type:"};
+    connect(typeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            [&](int i){ extraLbl->setText(xlbls[i]); });
+    auto* btns = new QDialogButtonBox(QDialogButtonBox::Ok|QDialogButtonBox::Cancel, &dlg);
+    form->addRow(btns);
     connect(btns, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     connect(btns, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
     if (dlg.exec() != QDialog::Accepted) return;
-    if (nameEdit->text().trimmed().isEmpty()) { QMessageBox::warning(this, "Error", "Name cannot be empty."); return; }
+    static const char* tags[] = {"DOG","CAT","BIRD","REPTILE"};
     try {
-        _service.addAnimal(typeBox->currentText().toUpper().toStdString(),
-                           nameEdit->text().trimmed().toStdString(), ageSpin->value(), ownerId);
-        refreshDetail(ownerId);
+        _svc.addAnimal(tags[typeCombo->currentIndex()],
+                       nameEdit->text().toStdString(),
+                       ageSpin->value(), ownerId,
+                       extraEdit->text().toStdString());
+        loadAnimals(ownerId);
     } catch (const exception& e) { QMessageBox::warning(this, "Error", e.what()); }
 }
 
-void ClientsTab::onAnimalEdit() {
-    int ownerId  = selectedOwnerId();
-    int animalId = selectedAnimalId();
-    if (ownerId < 0 || animalId < 0) { QMessageBox::information(this, "Edit", "Select an animal first."); return; }
-    int row = _animalTable->currentRow();
-    QDialog dlg(this); dlg.setWindowTitle("Edit Animal"); dlg.setMinimumWidth(280);
-    QFormLayout form(&dlg);
-    QLineEdit* nameEdit = new QLineEdit(_animalTable->item(row, 1)->text(), &dlg);
-    form.addRow("Name:", nameEdit);
-    QSpinBox* ageSpin = new QSpinBox(&dlg); ageSpin->setRange(1, 100); ageSpin->setSuffix(" years");
-    ageSpin->setValue(_animalTable->item(row, 2)->text().toInt());
-    form.addRow("Age:", ageSpin);
-    auto* btns = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
-    form.addRow(btns);
-    connect(btns, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
-    connect(btns, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
-    if (dlg.exec() != QDialog::Accepted || nameEdit->text().trimmed().isEmpty()) return;
+void ClientsTab::onAnimalEdit()
+{
+    int animalId = selectedAnimalId(); int ownerId = selectedOwnerId();
+    if (animalId < 0 || ownerId < 0) return;
     try {
-        Animal* a = _service.getAnimal(animalId);
-        a->setName(nameEdit->text().trimmed().toStdString());
-        a->setAge(ageSpin->value());
-        _service.updateAnimal(a);
-        refreshDetail(ownerId);
+        Animal* a = _svc.getAnimal(animalId);
+        QString tag  = QString::fromStdString(a->getTypeTag());
+        QString info = QString::fromStdString(a->getSpeciesInfo());
+        QString curExtra = info.section(": ", 1);
+        QString extraLblText = (tag=="DOG") ? "Breed:" :
+                               (tag=="CAT") ? "Fur type:" :
+                               (tag=="BIRD") ? "Species:" : "Reptile type:";
+        QDialog dlg(this); dlg.setWindowTitle("Edit Animal"); dlg.setMinimumWidth(340);
+        auto* form = new QFormLayout(&dlg);
+        auto* nameEdit  = new QLineEdit(QString::fromStdString(a->getName()), &dlg);
+        auto* ageSpin   = new QSpinBox(&dlg);
+        ageSpin->setRange(1,50); ageSpin->setSuffix(" years"); ageSpin->setValue(a->getAge());
+        auto* extraEdit = new QLineEdit(curExtra, &dlg);
+        form->addRow("Name:",      nameEdit);
+        form->addRow("Age:",       ageSpin);
+        form->addRow(extraLblText, extraEdit);
+        auto* btns = new QDialogButtonBox(QDialogButtonBox::Ok|QDialogButtonBox::Cancel, &dlg);
+        form->addRow(btns);
+        connect(btns, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+        connect(btns, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+        if (dlg.exec() != QDialog::Accepted) return;
+        string name = nameEdit->text().toStdString();
+        int    age  = ageSpin->value();
+        string ext  = extraEdit->text().toStdString();
+        Animal* upd = nullptr;
+        if (tag=="DOG")        upd = new Dog(animalId, name, age, ownerId, ext);
+        else if (tag=="CAT")   upd = new Cat(animalId, name, age, ownerId, ext);
+        else if (tag=="BIRD")  upd = new Bird(animalId, name, age, ownerId, ext);
+        else                   upd = new Reptile(animalId, name, age, ownerId, ext);
+        _svc.updateAnimal(upd);
+        loadAnimals(ownerId);
     } catch (const exception& e) { QMessageBox::warning(this, "Error", e.what()); }
 }
 
-void ClientsTab::onAnimalDelete() {
-    int ownerId  = selectedOwnerId();
-    int animalId = selectedAnimalId();
-    if (ownerId < 0 || animalId < 0) { QMessageBox::information(this, "Delete", "Select an animal first."); return; }
-    QString name = _animalTable->item(_animalTable->currentRow(), 1)->text();
-    if (QMessageBox::question(this, "Delete", QString("Delete \"%1\"?").arg(name),
-        QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes) return;
-    try { _service.removeAnimal(animalId); refreshDetail(ownerId); }
-    catch (const exception& e) { QMessageBox::warning(this, "Error", e.what()); }
+void ClientsTab::onAnimalDelete()
+{
+    int animalId = selectedAnimalId(); int ownerId = selectedOwnerId();
+    if (animalId < 0) return;
+    try {
+        QString name = QString::fromStdString(_svc.getAnimal(animalId)->getName());
+        if (QMessageBox::question(this, "Delete Animal",
+                "Delete \"" + name + "\"?",
+                QMessageBox::Yes|QMessageBox::No) != QMessageBox::Yes) return;
+        _svc.removeAnimal(animalId);
+        clearVisits();
+        loadAnimals(ownerId);
+    } catch (const exception& e) { QMessageBox::warning(this, "Error", e.what()); }
 }
 
-// ── Visit CRUD ───────────────────────────────────────
-
-void ClientsTab::onVisitAdd() {
-    int ownerId = selectedOwnerId();
-    if (ownerId < 0) { QMessageBox::information(this, "New Visit", "Select a client first."); return; }
-    auto ownerAnimals = _service.getAnimalsByOwner(ownerId);
-    if (ownerAnimals.empty()) { QMessageBox::warning(this, "Error", "No animals for this client."); return; }
-
-    QDialog dlg(this); dlg.setWindowTitle("New Visit"); dlg.setMinimumWidth(340);
-    QFormLayout form(&dlg);
-
-    QComboBox* animalBox = new QComboBox(&dlg);
-    for (Animal* a : ownerAnimals)
-        animalBox->addItem(QString::fromStdString(a->getName()) +
-                           " (" + QString::fromStdString(a->getTypeTag()) + ")", a->getId());
-    form.addRow("Animal:", animalBox);
-
-    QDateEdit* dateEdit = new QDateEdit(QDate::currentDate(), &dlg);
-    dateEdit->setCalendarPopup(true);
-    dateEdit->setDisplayFormat("yyyy-MM-dd");
-    form.addRow("Date:", dateEdit);
-
-    QListWidget* svcList = new QListWidget(&dlg);
-    svcList->setSelectionMode(QAbstractItemView::MultiSelection);
-    svcList->setMaximumHeight(120);
-    for (Service* s : _service.getAllServices()) {
-        auto* item = new QListWidgetItem(
-            QString::fromStdString(s->getName()) +
-            QString("  —  $%1").arg(s->getFinalPrice(), 0, 'f', 2));
-        item->setData(Qt::UserRole, s->getId());
-        svcList->addItem(item);
+void ClientsTab::onVisitNew()
+{
+    int animalId = selectedAnimalId(); int ownerId = selectedOwnerId();
+    if (animalId < 0 || ownerId < 0) return;
+    const auto& allSvc = _svc.getAllServices();
+    if (allSvc.empty()) {
+        QMessageBox::information(this, "No Services",
+            "Please add services in the Services tab first.");
+        return;
     }
-    form.addRow("Services:", svcList);
-
-    auto* btns = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
-    form.addRow(btns);
+    QDialog dlg(this); dlg.setWindowTitle("New Visit"); dlg.setMinimumWidth(400);
+    auto* vl = new QVBoxLayout(&dlg);
+    auto* form = new QFormLayout;
+    auto* dateEdit = new QDateEdit(QDate::currentDate(), &dlg);
+    dateEdit->setCalendarPopup(true); dateEdit->setDisplayFormat("yyyy-MM-dd");
+    form->addRow("Date:", dateEdit);
+    vl->addLayout(form);
+    vl->addWidget(new QLabel("Services (check one or more):", &dlg));
+    auto* svcList = new QListWidget(&dlg);
+    svcList->setSelectionMode(QAbstractItemView::NoSelection);
+    for (Service* s : allSvc) {
+        auto* item = new QListWidgetItem(
+            QString("%1  —  $%2  —  %3")
+                .arg(QString::fromStdString(s->getName()))
+                .arg(s->getFinalPrice(), 0, 'f', 2)
+                .arg(QString::fromStdString(s->getDescription())),
+            svcList);
+        item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+        item->setCheckState(Qt::Unchecked);
+        item->setData(Qt::UserRole, s->getId());
+    }
+    vl->addWidget(svcList);
+    auto* btns = new QDialogButtonBox(QDialogButtonBox::Ok|QDialogButtonBox::Cancel, &dlg);
+    vl->addWidget(btns);
     connect(btns, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     connect(btns, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
     if (dlg.exec() != QDialog::Accepted) return;
-
-    int animalId = animalBox->currentData().toInt();
-    vector<int> serviceIds;
-    for (QListWidgetItem* item : svcList->selectedItems())
-        serviceIds.push_back(item->data(Qt::UserRole).toInt());
+    vector<int> ids;
+    for (int i = 0; i < svcList->count(); ++i)
+        if (svcList->item(i)->checkState() == Qt::Checked)
+            ids.push_back(svcList->item(i)->data(Qt::UserRole).toInt());
+    if (ids.empty()) {
+        QMessageBox::warning(this,"No Services","Please check at least one service.");
+        return;
+    }
     try {
-        _service.createVisit(animalId, ownerId,
-            dateEdit->date().toString("yyyy-MM-dd").toStdString(), serviceIds);
-        refreshDetail(ownerId);
+        _svc.createVisit(animalId, ownerId,
+                         dateEdit->date().toString("yyyy-MM-dd").toStdString(), ids);
+        loadVisits(animalId);
     } catch (const exception& e) { QMessageBox::warning(this, "Error", e.what()); }
 }
 
-void ClientsTab::onVisitCancel() {
-    int ownerId = selectedOwnerId();
-    int visitId = selectedVisitId();
-    if (ownerId < 0 || visitId < 0) { QMessageBox::information(this, "Cancel", "Select a visit first."); return; }
-    if (QMessageBox::question(this, "Cancel Visit", "Cancel this visit?",
-        QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes) return;
-    try { _service.cancelVisit(visitId); refreshDetail(ownerId); }
-    catch (const exception& e) { QMessageBox::warning(this, "Error", e.what()); }
+void ClientsTab::onVisitCancel()
+{
+    int visitId = selectedVisitId(); int animalId = selectedAnimalId();
+    if (visitId < 0) return;
+    if (QMessageBox::question(this,"Cancel Visit","Remove this visit record?",
+            QMessageBox::Yes|QMessageBox::No) != QMessageBox::Yes) return;
+    try {
+        _svc.cancelVisit(visitId);
+        loadVisits(animalId);
+    } catch (const exception& e) { QMessageBox::warning(this, "Error", e.what()); }
 }

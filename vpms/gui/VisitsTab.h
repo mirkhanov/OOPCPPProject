@@ -2,6 +2,7 @@
 #include <QWidget>
 #include <QTableWidget>
 #include <QPushButton>
+#include <QComboBox>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include "../core/ClinicService.h"
@@ -13,15 +14,18 @@ public:
     explicit VisitsTab(ClinicService& service, QWidget* parent = nullptr);
 
 private slots:
-    void onAdd();
-    void onCancel();
+    void onFilterChanged();
+    void onNewVisit();
+    void onCancelVisit();
 
 private:
-    ClinicService& _service;
-    QTableWidget*  _table;
-    QPushButton*   _addBtn;
+    ClinicService& _svc;
+    QTableWidget*  _visitTable;
+    QComboBox*     _ownerFilter;
+    QPushButton*   _newVisitBtn;
     QPushButton*   _cancelBtn;
 
     void setupUI();
-    void loadData();
+    void loadVisits();
+    int  selectedVisitId();
 };

@@ -25,4 +25,13 @@ void MainWindow::setupUI() {
     _tabs->addTab(_hospitalizationTab, "Hospitalization");
 
     setCentralWidget(_tabs);
+
+    setStyleSheet(R"(
+        QTableWidget { alternate-background-color: #f8f8f8; gridline-color: #e0e0e0; }
+        QHeaderView::section { background-color: #f0f0f0; padding: 5px; border: none; border-bottom: 1px solid #ccc; font-weight: bold; }
+        QPushButton { padding: 4px 14px; min-width: 70px; }
+        QListWidget::item:selected { background: #0078d4; color: white; }
+        QTabBar::tab { padding: 7px 18px; }
+        QTabBar::tab:selected { font-weight: bold; }
+    )");
 }

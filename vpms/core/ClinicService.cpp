@@ -51,11 +51,11 @@ void ClinicService::removeOwner(int ownerId) {
 // ──────────────────────────────────────────────
 
 Animal* ClinicService::addAnimal(const string& type, const string& name,
-                                  int age, int ownerId) {
+                                  int age, int ownerId, const string& extra) {
     if (!_owners.exists(ownerId)) throw NotFoundException(ownerId);
     if (age <= 0) throw ValidationException("Animal age must be positive.");
     int id = _idGen.next("animal");
-    Animal* a = AnimalFactory::create(type, id, name, age, ownerId);
+    Animal* a = AnimalFactory::create(type, id, name, age, ownerId, extra);
     _animals->add(a);
     return a;
 }

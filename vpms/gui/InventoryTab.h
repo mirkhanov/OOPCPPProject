@@ -2,6 +2,7 @@
 #include <QWidget>
 #include <QTableWidget>
 #include <QPushButton>
+#include <QLabel>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include "../core/ClinicService.h"
@@ -19,13 +20,14 @@ private slots:
     void onDelete();
 
 private:
-    ClinicService& _service;
+    ClinicService& _svc;
     QTableWidget*  _table;
+    QLabel*        _totalLabel;
     QPushButton*   _addBtn;
     QPushButton*   _stockInBtn;
     QPushButton*   _stockOutBtn;
     QPushButton*   _deleteBtn;
 
     void setupUI();
-    void loadData();
+    void loadItems();
 };

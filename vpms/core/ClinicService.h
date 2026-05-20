@@ -30,7 +30,7 @@ public:
 
     // --- Animal ---
     Animal*     addAnimal(const string& type, const string& name,
-                          int age, int ownerId);
+                          int age, int ownerId, const string& extra = "");
     Animal*     getAnimal(int animalId);
     const vector<Animal*>& getAllAnimals();
     vector<Animal*> getAnimalsByOwner(int ownerId);
