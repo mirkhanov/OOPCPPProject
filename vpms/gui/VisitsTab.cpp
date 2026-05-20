@@ -230,6 +230,11 @@ void VisitsTab::onNewVisit()
             serviceIds.push_back(item->data(Qt::UserRole).toInt());
     }
 
+    if (serviceIds.empty()) {
+        QMessageBox::warning(this, "No Services", "Please check at least one service.");
+        return;
+    }
+
     try {
         _svc.createVisit(animalId, ownerId,
                          dateEdit->date().toString("yyyy-MM-dd").toStdString(),
