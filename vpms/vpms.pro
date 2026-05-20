@@ -7,10 +7,24 @@ SOURCES += \
     main.cpp \
     core/IdGenerator.cpp \
     core/ClinicService.cpp \
+    animals/Animal.cpp \
+    animals/Owner.cpp \
+    animals/Dog.cpp \
+    animals/Cat.cpp \
+    animals/Bird.cpp \
+    animals/Reptile.cpp \
     animals/AnimalRepository.cpp \
     animals/AnimalFactory.cpp \
+    visits/Service.cpp \
+    visits/Consultation.cpp \
+    visits/Vaccination.cpp \
+    visits/Surgery.cpp \
+    visits/Grooming.cpp \
+    visits/Visit.cpp \
     visits/ServiceRepository.cpp \
     visits/ServiceFactory.cpp \
+    inventory/InventoryItem.cpp \
+    inventory/HospitalizationRecord.cpp \
     gui/MainWindow.cpp \
     gui/ClientsTab.cpp \
     gui/VisitsTab.cpp \
@@ -24,8 +38,8 @@ HEADERS += \
     core/IdGenerator.h \
     core/Repository.h \
     core/ClinicService.h \
-    animals/Owner.h \
     animals/Animal.h \
+    animals/Owner.h \
     animals/Dog.h \
     animals/Cat.h \
     animals/Bird.h \
@@ -37,9 +51,9 @@ HEADERS += \
     visits/Vaccination.h \
     visits/Surgery.h \
     visits/Grooming.h \
+    visits/Visit.h \
     visits/ServiceRepository.h \
     visits/ServiceFactory.h \
-    visits/Visit.h \
     inventory/InventoryItem.h \
     inventory/HospitalizationRecord.h \
     gui/MainWindow.h \

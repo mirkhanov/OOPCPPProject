@@ -11,8 +11,3 @@ moc_predefs.h
 vpms/data/*.dat
 vpms/test_all
 vpms/test_all_dbg
-
-# Teammate modules (kept locally, not in repo)
-vpms/animals/
-vpms/visits/
-vpms/inventory/
