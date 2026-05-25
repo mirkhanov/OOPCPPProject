@@ -129,10 +129,13 @@ void HospitalizationTab::loadTables()
         _activeTable->setItem(i, 4, new QTableWidgetItem(
             QString("$%1  (%2 days)").arg(billSoFar, 0, 'f', 2).arg(days)));
 
-        // Highlight light yellow
-        for (int col = 0; col < 5; ++col)
-            if (_activeTable->item(i, col))
+        // Highlight light yellow with black text for contrast in dark mode
+        for (int col = 0; col < 5; ++col) {
+            if (_activeTable->item(i, col)) {
                 _activeTable->item(i, col)->setBackground(QBrush(activeColor));
+                _activeTable->item(i, col)->setForeground(QBrush(Qt::black));
+            }
+        }
     }
     _activeTable->resizeColumnsToContents();
     _activeTable->horizontalHeader()->setStretchLastSection(true);

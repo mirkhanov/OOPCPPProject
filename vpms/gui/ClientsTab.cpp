@@ -189,7 +189,7 @@ void ClientsTab::loadAnimals(int ownerId)
     try {
         Owner& o = _svc.getOwner(ownerId);
         _animalsHeader->setText(
-            QString("<b>%1</b>   <span style='color:#555'>%2</span>")
+            QString("<b>%1</b>   <span style='color:#888'>%2</span>")
                 .arg(QString::fromStdString(o.getName()))
                 .arg(QString::fromStdString(o.getContactInfo())));
     } catch (...) { return; }
@@ -213,7 +213,7 @@ void ClientsTab::loadVisits(int animalId)
     try {
         Animal* a = _svc.getAnimal(animalId);
         _visitsHeader->setText(
-            QString("<b>%1</b>   <span style='color:#555'>%2</span>")
+            QString("<b>%1</b>   <span style='color:#888'>%2</span>")
                 .arg(QString::fromStdString(a->getName()))
                 .arg(typeLabel(a->getTypeTag())));
     } catch (...) { return; }
